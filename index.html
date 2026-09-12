@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FRAN-CHAT</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#111b21;color:white;font-family:sans-serif;display:flex;flex-direction:column;height:100vh}
+header{background:#202c33;padding:15px;text-align:center;font-weight:bold;font-size:20px;color:#00a884}
+#messages{flex:1;overflow:auto;padding:15px}
+.msg{background:#202c33;padding:10px 14px;border-radius:10px;margin-bottom:10px;width:fit-content;max-width:85%}
+#form{display:flex;padding:10px;background:#202c33;gap:10px;position:fixed;bottom:0;left:0;right:0}
+#input{flex:1;padding:14px;border-radius:25px;border:none;outline:none;font-size:16px}
+#form button{padding:14px 22px;border:none;border-radius:25px;background:#00a884;color:white;font-weight:bold;font-size:16px}
+</style></head><body>
+<header>🟢 FRAN-CHAT CONNECTÉ</header>
+<div id="messages"><div class="msg">Bienvenue sur ton chat Fran! Tape un message en bas 👇</div></div>
+<form id="form"><input id="input" placeholder="Tape ton message..."/><button>Envoyer</button></form>
+<script src="/socket.io/socket.io.js"></script>
+<script>
+const socket=io();
+const form=document.getElementById('form'),input=document.getElementById('input'),messages=document.getElementById('messages');
+form.addEventListener('submit',e=>{e.preventDefault();if(input.value){socket.emit('chat message',input.value);input.value='';}});
+socket.on('chat message',msg=>{const d=document.createElement('div');d.className='msg';d.textContent=msg;messages.appendChild(d);messages.scrollTop=messages.scrollHeight;});
+</script></body></html>
