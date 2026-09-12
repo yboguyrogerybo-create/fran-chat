@@ -4,27 +4,19 @@ const http = require('http').createServer(app);
 const io = require('socket.io')(http, { maxHttpBufferSize: 1e7 });
 app.use(express.static(__dirname));
 app.get('/', (req,res)=>res.sendFile(__dirname+'/index.html'));
-
 let users = {};
-
 io.on('connection', socket=>{
   socket.on('join', data=>{
     socket.myName = data.name || 'Invité';
-    socket.myRoom = data.room || 'general';
-    users[socket.id] = socket.myName + ' (' + socket.myRoom + ')';
+    users[socket.id] = socket.myName;
     io.emit('online', Object.values(users));
-    console.log(socket.myName + ' rejoint ' + socket.myRoom);
   });
-
   socket.on('chat message', msg=>{
-    // On envoie à TOUT LE MONDE pour être sûr que vous vous voyez
     io.emit('chat message', msg);
   });
-
   socket.on('disconnect', ()=>{
     delete users[socket.id];
     io.emit('online', Object.values(users));
   });
 });
-
-http.listen(process.env.PORT || 3000, ()=>console.log('FRAN-CHAT OK'));
+http.listen(process.env.PORT || 3000);
