@@ -1,1 +1,42 @@
-<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width"><title>FRAN-CHAT</title><style>*{box-sizing:border-box}body{margin:0;background:#111b21;color:#fff;height:100vh;display:flex;flex-direction:column;font-family:Arial}header{background:#202c33;padding:15px;text-align:center;color:#00a884;font-weight:bold}#messages{flex:1;overflow:auto;padding:15px;display:flex;flex-direction:column;gap:10px}.msg{background:#202c33;padding:10px 14px;border-radius:12px;max-width:85%}img{max-width:200px;border-radius:10px}audio{width:220px}#form{display:flex;padding:10px;background:#202c33;gap:6px}#input{flex:1;padding:14px;border-radius:25px;border:none;outline:none}#form button{padding:12px;border-radius:25px;border:none}#photoBtn,#micBtn{background:#2a3942}#micBtn.rec{background:red;animation:pulse 1s infinite}@keyframes pulse{50%{transform:scale(1.1)}}#sendBtn{background:#00a884;color:#fff}</style></head><body><header>🟢 FRAN-CHAT</header><div id="messages"><div class="msg">Bienvenue! 📸+🎤 dispo!</div></div><form id="form"><button id="photoBtn" type="button">📸</button><button id="micBtn" type="button">🎤</button><input id="input" placeholder="Message..."><input type="file" id="file" accept="image/*" hidden><button id="sendBtn" type="submit">Envoyer</button></form><script src="/socket.io/socket.io.js"></script><script>const s=io(),c=document.getElementById('messages'),i=document.getElementById('input'),f=document.getElementById('file'),m=document.getElementById('micBtn');let rec,ch=[],recOn=false;document.getElementById('photoBtn').onclick=()=>f.click();document.getElementById('form').onsubmit=e=>{e.preventDefault();if(!i.value.trim())return;s.emit('chat message',{type:'text',data:i.value});i.value=''};f.onchange=()=>{let x=f.files[0];if(!x)return;let r=new FileReader();r.onload=()=>s.emit('chat message',{type:'image',data:r.result});r.readAsDataURL(x)};m.onclick=async()=>{if(!recOn){try{let st=await navigator.mediaDevices.getUserMedia({audio:true});rec=new MediaRecorder(st);ch=[];rec.ondataavailable=e=>ch.push(e.data);rec.onstop=()=>{let b=new Blob(ch,{type:'audio/webm'});let r=new FileReader();r.onload=()=>s.emit('chat message',{type:'audio',data:r.result});r.readAsDataURL(b);st.getTracks().forEach(t=>t.stop())};rec.start();recOn=true;m.classList.add('rec');m.textContent='⏹️'}catch{alert('Autorise le micro!')}}else{rec.stop();recOn=false;m.classList.remove('rec');m.textContent='🎤'}};s.on('chat message',x=>{let d=document.createElement('div');d.className='msg';if(typeof x==='string')d.textContent=x;else if(x.type==='image')d.innerHTML='<img src="'+x.data+'">';else if(x.type==='audio')d.innerHTML='<audio controls src="'+x.data+'"></audio>';else d.textContent=x.data; c.appendChild(d);c.scrollTop=c.scrollHeight})</script></body></html>
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width">
+<title>FRAN-CHAT</title>
+<style>
+body{margin:0;background:#111b21;color:#fff;height:100vh;display:flex;flex-direction:column;font-family:Arial}
+header{background:#202c33;padding:15px;text-align:center;color:#00a884;font-weight:bold}
+#messages{flex:1;overflow:auto;padding:15px;display:flex;flex-direction:column;gap:10px}
+.msg{background:#202c33;padding:8px 14px;border-radius:12px;max-width:85%}
+.msg b{color:#00a884;display:block;font-size:13px}
+img{max-width:200px;border-radius:10px}
+#form{display:flex;padding:10px;background:#202c33;gap:6px}
+#input{flex:1;padding:14px;border-radius:25px;border:none}
+button{padding:12px;border-radius:25px;border:none}
+#sendBtn{background:#00a884;color:#fff}
+</style>
+</head>
+<body>
+<header>🟢 FRAN-CHAT avec NOMS</header>
+<div id="messages"></div>
+<form id="form">
+<button type="button" onclick="document.getElementById('file').click()">📸</button>
+<button type="button" id="micBtn">🎤</button>
+<input id="input" placeholder="Message...">
+<input type="file" id="file" hidden accept="image/*">
+<button id="sendBtn" type="submit">Envoyer</button>
+</form>
+<script src="/socket.io/socket.io.js"></script>
+<script>
+let nom=prompt("Ton nom?")||"Invité";
+const s=io(),c=document.getElementById('messages'),i=document.getElementById('input'),f=document.getElementById('file'),m=document.getElementById('micBtn');
+let rec,ch=[],on=false;
+document.getElementById('form').onsubmit=e=>{e.preventDefault();if(!i.value.trim())return;s.emit('chat message',{type:'text',data:i.value,name:nom});i.value=''};
+f.onchange=()=>{let x=f.files[0];if(!x)return;let r=new FileReader();r.onload=()=>s.emit('chat message',{type:'image',data:r.result,name:nom});r.readAsDataURL(x)};
+m.onclick=async()=>{if(!on){let st=await navigator.mediaDevices.getUserMedia({audio:true});rec=new MediaRecorder(st);ch=[];rec.ondataavailable=e=>ch.push(e.data);rec.onstop=()=>{let b=new Blob(ch,{type:'audio/webm'});let rr=new FileReader();rr.onload=()=>s.emit('chat message',{type:'audio',data:rr.result,name:nom});rr.readAsDataURL(b);st.getTracks().forEach(t=>t.stop())};rec.start();on=true;m.textContent='⏹️';m.style.background='red'}else{rec.stop();on=false;m.textContent='🎤';m.style.background=''}};
+s.on('chat message',x=>{let d=document.createElement('div');d.className='msg';let n=x.name||'Anonyme';if(x.type==='image')d.innerHTML='<b>'+n+'</b><img src="'+x.data+'">';else if(x.type==='audio')d.innerHTML='<b>'+n+'</b><audio controls src="'+x.data+'"></audio>';else d.innerHTML='<b>'+n+'</b>'+(x.data||x);c.appendChild(d);c.scrollTop=c.scrollHeight});
+let j=document.createElement('div');j.className='msg';j.innerHTML='<b>Systeme</b>Bienvenue '+nom; c.appendChild(j);
+</script>
+</body>
+</html>
