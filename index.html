@@ -1,33 +1,84 @@
-const express = require('express');
-const app = express();
-const http = require('http').createServer(app);
-const io = require('socket.io')(http);
-app.use(express.static(__dirname));
-app.get('/', (req,res)=> res.sendFile(__dirname+'/index.html'));
-let onlineUsers = {};
-io.on('connection', socket=>{
-  let currentRoom = 'general';
-  let currentName = '';
-  socket.on('join room', data=>{
-    let room = typeof data === 'string'? data : data.room;
-    let name = typeof data === 'object'? data.name : '';
-    socket.leave(currentRoom);
-    currentRoom = room || 'general';
-    currentName = name || currentName;
-    socket.join(currentRoom);
-    if(!onlineUsers[currentRoom]) onlineUsers[currentRoom] = {};
-    onlineUsers[currentRoom][socket.id] = currentName;
-    io.to(currentRoom).emit('online users', Object.values(onlineUsers[currentRoom]));
-  });
-  socket.on('chat message', msg=>{
-    io.to(currentRoom).emit('chat message', msg);
-  });
-  socket.on('disconnect', ()=>{
-    if(onlineUsers[currentRoom] && onlineUsers[currentRoom][socket.id]){
-      delete onlineUsers[currentRoom][socket.id];
-      io.to(currentRoom).emit('online users', Object.values(onlineUsers[currentRoom]));
-    }
-  });
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width">
+<title>FRAN-CHAT</title>
+<style>
+body{margin:0;background:#111b21;color:#fff;height:100vh;display:flex;flex-direction:column;font-family:Arial}
+header{background:#202c33;padding:15px;text-align:center;color:#00a884;font-weight:bold}
+#info{background:#182229;padding:8px;text-align:center;font-size:12px}
+#online{background:#202c33;padding:8px;font-size:12px}
+#messages{flex:1;overflow:auto;padding:15px;display:flex;flex-direction:column;gap:10px}
+.msg{background:#202c33;padding:8px 14px;border-radius:12px;max-width:80%}
+.msg b{color:#00a884;font-size:12px;display:block}
+.msg.mine{background:#005c4b;align-self:flex-end}
+img{max-width:200px;border-radius:10px}
+#form{display:flex;padding:10px;background:#202c33;gap:5px}
+#input{flex:1;padding:12px;border-radius:20px;border:none}
+button{padding:10px;border-radius:20px;border:none}
+#send{background:#00a884;color:#fff}
+</style>
+</head>
+<body>
+<header>🟢 FRAN-CHAT</header>
+<div id="info"></div>
+<div id="online">🟢 En ligne:...</div>
+<div id="messages"></div>
+<form id="form">
+<button type="button" onclick="file.click()">📸</button>
+<button type="button" id="mic">🎤</button>
+<input id="input" placeholder="Message...">
+<input type="file" id="file" hidden accept="image/*">
+<button id="send" type="submit">Envoyer</button>
+</form>
+<script src="/socket.io/socket.io.js"></script>
+<script>
+let room=new URLSearchParams(location.search).get('groupe')||prompt("Nom du groupe?")||'general';
+let nom=localStorage.getItem('nom')||prompt("Ton nom?")||'Invité';
+localStorage.setItem('nom',nom);
+info.innerHTML='Groupe: '+room+' | Toi: '+nom;
+let s=io();
+s.emit('join room',{room:room,name:nom});
+s.on('online users',u=>{
+ online.innerHTML='🟢 En ligne ('+u.length+'): '+[...new Set(u)].join(', ');
 });
-const PORT = process.env.PORT || 3000;
-http.listen(PORT, ()=> console.log('FRAN-CHAT '+PORT));
+form.onsubmit=e=>{
+ e.preventDefault();
+ if(!input.value.trim())return;
+ s.emit('chat message',{type:'text',data:input.value,name:nom});
+ input.value='';
+};
+file.onchange=()=>{
+ let x=file.files[0];if(!x)return;
+ let r=new FileReader();
+ r.onload=()=>s.emit('chat message',{type:'image',data:r.result,name:nom});
+ r.readAsDataURL(x);
+};
+let rec,ch=[],on=false;
+mic.onclick=async()=>{
+ if(!on){
+  let st=await navigator.mediaDevices.getUserMedia({audio:true});
+  rec=new MediaRecorder(st);ch=[];
+  rec.ondataavailable=e=>ch.push(e.data);
+  rec.onstop=()=>{
+   let b=new Blob(ch);let rr=new FileReader();
+   rr.onload=()=>s.emit('chat message',{type:'audio',data:rr.result,name:nom});
+   rr.readAsDataURL(b);
+   st.getTracks().forEach(t=>t.stop());
+  };
+  rec.start();on=true;mic.textContent='⏹️';
+ }else{rec.stop();on=false;mic.textContent='🎤';}
+};
+s.on('chat message',x=>{
+ let d=document.createElement('div');
+ d.className='msg'+(x.name==nom?' mine':'');
+ if(x.type=='image')d.innerHTML='<b>'+x.name+'</b><img src="'+x.data+'">';
+ else if(x.type=='audio')d.innerHTML='<b>'+x.name+'</b><audio controls src="'+x.data+'"></audio>';
+ else d.innerHTML='<b>'+x.name+'</b>'+x.data;
+ messages.appendChild(d);
+ messages.scrollTop=99999;
+});
+</script>
+</body>
+</html>
