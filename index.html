@@ -4,17 +4,30 @@ const http = require('http').createServer(app);
 const io = require('socket.io')(http);
 app.use(express.static(__dirname));
 app.get('/', (req,res)=> res.sendFile(__dirname+'/index.html'));
+let onlineUsers = {};
 io.on('connection', socket=>{
   let currentRoom = 'general';
-  socket.on('join room', room=>{
+  let currentName = '';
+  socket.on('join room', data=>{
+    let room = typeof data === 'string'? data : data.room;
+    let name = typeof data === 'object'? data.name : '';
     socket.leave(currentRoom);
     currentRoom = room || 'general';
+    currentName = name || currentName;
     socket.join(currentRoom);
-    console.log('Rejoint:', currentRoom);
+    if(!onlineUsers[currentRoom]) onlineUsers[currentRoom] = {};
+    onlineUsers[currentRoom][socket.id] = currentName;
+    io.to(currentRoom).emit('online users', Object.values(onlineUsers[currentRoom]));
   });
   socket.on('chat message', msg=>{
     io.to(currentRoom).emit('chat message', msg);
   });
+  socket.on('disconnect', ()=>{
+    if(onlineUsers[currentRoom] && onlineUsers[currentRoom][socket.id]){
+      delete onlineUsers[currentRoom][socket.id];
+      io.to(currentRoom).emit('online users', Object.values(onlineUsers[currentRoom]));
+    }
+  });
 });
 const PORT = process.env.PORT || 3000;
-http.listen(PORT, ()=> console.log('FRAN-CHAT lancé sur '+PORT));
+http.listen(PORT, ()=> console.log('FRAN-CHAT '+PORT));
